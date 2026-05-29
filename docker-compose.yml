@@ -1,0 +1,80 @@
+services:
+
+  # ── Database ────────────────────────────────────────────────────────────────
+  db:
+    image: mariadb:11
+    container_name: nextcloud_db
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
+      MYSQL_DATABASE: nextcloud
+      MYSQL_USER: nextcloud
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+    networks:
+      - nextcloud_net
+
+  # ── Redis cache (optional but recommended) ──────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    container_name: nextcloud_redis
+    restart: unless-stopped
+    networks:
+      - nextcloud_net
+
+  # ── Nextcloud ───────────────────────────────────────────────────────────────
+  nextcloud:
+    image: nextcloud:latest
+    container_name: nextcloud_app
+    restart: unless-stopped
+    entrypoint: >
+      /bin/sh -c "usermod -aG staff www-data && /entrypoint.sh apache2-foreground"
+    depends_on:
+      - db
+      - redis
+    environment:
+      OVERWRITEPROTOCOL: https
+      OVERWRITEHOST: divyanshu-palak-wedding.space
+      # Database
+      MYSQL_HOST: db
+      MYSQL_DATABASE: nextcloud
+      MYSQL_USER: nextcloud
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      # Admin account (first boot only)
+      NEXTCLOUD_ADMIN_USER: ${NEXTCLOUD_ADMIN_USER}
+      NEXTCLOUD_ADMIN_PASSWORD: ${NEXTCLOUD_ADMIN_PASSWORD}
+      # Must match your Cloudflare tunnel hostname so Nextcloud trusts the host header
+      NEXTCLOUD_TRUSTED_DOMAINS: ${NEXTCLOUD_TRUSTED_DOMAIN}
+      # Redis
+      REDIS_HOST: redis
+      # PHP memory / upload limits
+      PHP_MEMORY_LIMIT: 1G
+      PHP_UPLOAD_LIMIT: 10G
+    volumes:
+      - nextcloud_html:/var/www/html          # Nextcloud core files
+      - nextcloud_data:/var/www/html/data     # User home directories
+      - "/Volumes/DP SSD:/mnt/ssd:ro,uid=33,gid=33"         # Your SSD (read-only — change to rw if users need to write)
+    networks:
+      - nextcloud_net
+    # No ports exposed — traffic comes exclusively through Cloudflare tunnel
+
+  # ── Cloudflared tunnel ──────────────────────────────────────────────────────
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: cloudflared
+    restart: unless-stopped
+    depends_on:
+      - nextcloud
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    networks:
+      - nextcloud_net
+
+volumes:
+  db_data:
+  nextcloud_html:
+  nextcloud_data:
+
+networks:
+  nextcloud_net:
+    driver: bridge
