@@ -1,0 +1,125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Photo Log — Photo Pipeline</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-900">
+
+<nav class="bg-white border-b px-6 py-3 flex gap-6 text-sm font-medium">
+  <a href="/" class="hover:text-indigo-600">Dashboard</a>
+  <a href="/clusters" class="hover:text-indigo-600">Events</a>
+  <a href="/people" class="hover:text-indigo-600">People</a>
+  <a href="/photos" class="text-indigo-600 hover:underline">Photos</a>
+  <a href="/graph" class="hover:text-indigo-600">Graph</a>
+  <a href="/insights" class="hover:text-indigo-600">Insights</a>
+  <a href="/search" class="hover:text-indigo-600">Search</a>
+</nav>
+
+<main class="max-w-5xl mx-auto p-6">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold">Photo Log</h1>
+    <span class="text-sm text-gray-500">{{ total }} photos processed · page {{ page }}/{{ total_pages }}</span>
+  </div>
+
+  {% if not logs %}
+    <p class="text-gray-500">No photos logged yet. Run ingestion first.</p>
+  {% endif %}
+
+  <div class="space-y-6">
+  {% for log in logs %}
+    <div class="bg-white rounded-lg border p-5">
+
+      <!-- Header: thumbnail + filename + timestamp -->
+      <div class="flex gap-4 mb-4">
+        <img src="{{ log.thumb_url }}" class="w-28 h-28 object-cover rounded flex-shrink-0">
+        <div class="min-w-0">
+          <div class="font-semibold text-sm truncate">{{ log.filename }}</div>
+          <div class="text-xs text-gray-400 mb-2">{{ log.processed_at[:19].replace('T', ' ') }}</div>
+
+          <!-- Event assignments -->
+          {% if log.event_updates %}
+            <div class="flex flex-wrap gap-1">
+            {% for eu in log.event_updates %}
+              <span class="text-xs px-2 py-0.5 rounded-full
+                {% if eu.label %}bg-indigo-100 text-indigo-700{% else %}bg-gray-100 text-gray-500{% endif %}">
+                {{ eu.label or '?' }} → {{ eu.event_id }}
+                ({{ (eu.label_confidence * 100) | int }}%)
+                {% if eu.is_new_event %}<em>new</em>{% endif %}
+              </span>
+            {% endfor %}
+            </div>
+          {% endif %}
+
+          <!-- People matched -->
+          {% if log.person_matches %}
+            <div class="mt-1 flex flex-wrap gap-1">
+            {% for pm in log.person_matches %}
+              <span class="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">
+                {{ pm.display_name or pm.person_id[:8] ~ '…' }}
+                ({{ (pm.confidence * 100) | int }}%)
+                {% if pm.is_new_person %} 🆕{% endif %}
+              </span>
+            {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+      </div>
+
+      <!-- LLM output fields -->
+      <div class="grid grid-cols-1 gap-2 text-sm">
+        {% if log.description %}
+        <div>
+          <span class="font-medium text-gray-700">Description: </span>
+          <span class="text-gray-600">{{ log.description }}</span>
+        </div>
+        {% endif %}
+        {% if log.activity %}
+        <div>
+          <span class="font-medium text-gray-700">Activity: </span>
+          <span class="text-gray-600">{{ log.activity }}</span>
+        </div>
+        {% endif %}
+        {% if log.setting %}
+        <div>
+          <span class="font-medium text-gray-700">Setting: </span>
+          <span class="text-gray-600">{{ log.setting }}</span>
+        </div>
+        {% endif %}
+        {% if log.attire_notes %}
+        <div>
+          <span class="font-medium text-gray-700">Attire: </span>
+          <span class="text-gray-600">{{ log.attire_notes }}</span>
+        </div>
+        {% endif %}
+        {% if log.cultural_context %}
+        <div>
+          <span class="font-medium text-gray-700">Cultural context: </span>
+          <span class="text-gray-600">{{ log.cultural_context }}</span>
+        </div>
+        {% endif %}
+      </div>
+
+    </div>
+  {% endfor %}
+  </div>
+
+  <!-- Pagination -->
+  {% if total_pages > 1 %}
+  <div class="flex justify-center gap-3 mt-8">
+    {% if page > 1 %}
+      <a href="/photos?page={{ page - 1 }}"
+         class="px-4 py-2 bg-white border rounded text-sm hover:bg-gray-50">← Prev</a>
+    {% endif %}
+    <span class="px-4 py-2 text-sm text-gray-500">{{ page }} / {{ total_pages }}</span>
+    {% if page < total_pages %}
+      <a href="/photos?page={{ page + 1 }}"
+         class="px-4 py-2 bg-white border rounded text-sm hover:bg-gray-50">Next →</a>
+    {% endif %}
+  </div>
+  {% endif %}
+</main>
+</body>
+</html>

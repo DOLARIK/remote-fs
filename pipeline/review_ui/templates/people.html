@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>People — Photo Pipeline</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-900">
+
+<nav class="bg-white border-b px-6 py-3 flex gap-6 text-sm font-medium">
+  <a href="/" class="hover:text-indigo-600">Dashboard</a>
+  <a href="/clusters" class="hover:text-indigo-600">Events</a>
+  <a href="/people" class="text-indigo-600 hover:underline">People</a>
+  <a href="/photos" class="hover:text-indigo-600">Photos</a>
+  <a href="/graph" class="hover:text-indigo-600">Graph</a>
+  <a href="/insights" class="hover:text-indigo-600">Insights</a>
+  <a href="/search" class="hover:text-indigo-600">Search</a>
+</nav>
+
+<main class="max-w-5xl mx-auto p-6">
+  <div class="flex items-center justify-between mb-6">
+    <h1 class="text-2xl font-bold">People</h1>
+    <div class="flex items-center gap-3">
+      <button hx-post="/people/sync-immich"
+              hx-target="#sync-result"
+              hx-swap="innerHTML"
+              class="bg-indigo-600 text-white px-3 py-1.5 rounded text-sm hover:bg-indigo-700">
+        Sync names from Immich
+      </button>
+      <span id="sync-result" class="text-sm"></span>
+    </div>
+  </div>
+
+  {% if not people %}
+    <p class="text-gray-500">No people detected yet. Run ingestion first.</p>
+  {% endif %}
+
+  <div class="grid grid-cols-2 gap-5">
+  {% for item in people %}
+    {% set p = item.person %}
+    <div class="bg-white rounded-lg border p-4">
+
+      <div class="flex items-center gap-2 mb-3">
+        <span class="font-semibold">{{ p.display_name or p.person_id }}</span>
+        {% if p.confirmed_by_human %}
+          <span class="text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Confirmed</span>
+        {% endif %}
+        {% if p.role %}
+          <span class="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{{ p.role }}</span>
+        {% endif %}
+      </div>
+
+      <!-- Thumbnails -->
+      <div class="flex gap-1 mb-3">
+        {% for url in item.thumb_urls %}
+          <img src="{{ url }}" class="w-20 h-20 object-cover rounded" loading="lazy">
+        {% endfor %}
+      </div>
+
+      <p class="text-xs text-gray-500 mb-3">{{ p.description[:120] }}</p>
+      <p class="text-xs text-gray-400 mb-3">Appears in {{ p.appears_in | length }} photos</p>
+
+      <!-- Name form -->
+      {% if not p.confirmed_by_human %}
+      <form hx-post="/people/{{ p.person_id }}/name"
+            hx-target="#name-result-{{ loop.index }}"
+            hx-swap="innerHTML"
+            class="flex flex-col gap-2">
+        <input type="text" name="display_name"
+               placeholder="Full name"
+               value="{{ p.display_name or '' }}"
+               class="border rounded px-2 py-1 text-sm w-full">
+        <select name="role" class="border rounded px-2 py-1 text-sm">
+          <option value="">— role (optional) —</option>
+          <option value="bride" {% if p.role == 'bride' %}selected{% endif %}>Bride</option>
+          <option value="groom" {% if p.role == 'groom' %}selected{% endif %}>Groom</option>
+          <option value="family" {% if p.role == 'family' %}selected{% endif %}>Family</option>
+          <option value="guest" {% if p.role == 'guest' %}selected{% endif %}>Guest</option>
+          <option value="vendor" {% if p.role == 'vendor' %}selected{% endif %}>Vendor</option>
+        </select>
+        <div class="flex gap-2 items-center">
+          <button type="submit"
+                  class="bg-indigo-600 text-white px-3 py-1 rounded text-sm hover:bg-indigo-700">
+            Save
+          </button>
+          <span id="name-result-{{ loop.index }}"></span>
+        </div>
+      </form>
+      {% endif %}
+
+    </div>
+  {% endfor %}
+  </div>
+
+  {% if face_clusters %}
+  <h2 class="text-xl font-bold mt-10 mb-4">Immich Face Clusters (unlinked)</h2>
+  <p class="text-sm text-gray-500 mb-4">
+    These are Immich's built-in face detections — use Immich to merge/name them,
+    then they'll be available for the pipeline to match against.
+  </p>
+  <div class="flex flex-wrap gap-3">
+    {% for fc in face_clusters %}
+      <div class="bg-white border rounded p-3 text-sm">
+        <div class="font-medium">{{ fc.get('name') or '(unnamed)' }}</div>
+        <div class="text-gray-400 text-xs">{{ fc.get('faces', 0) }} faces</div>
+      </div>
+    {% endfor %}
+  </div>
+  {% endif %}
+
+</main>
+</body>
+</html>

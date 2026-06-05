@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Knowledge Graph — Photo Pipeline</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-900">
+
+<nav class="bg-white border-b px-6 py-3 flex gap-6 text-sm font-medium">
+  <a href="/" class="hover:text-indigo-600">Dashboard</a>
+  <a href="/clusters" class="hover:text-indigo-600">Events</a>
+  <a href="/people" class="hover:text-indigo-600">People</a>
+  <a href="/photos" class="hover:text-indigo-600">Photos</a>
+  <a href="/graph" class="text-indigo-600 hover:underline">Graph</a>
+  <a href="/insights" class="hover:text-indigo-600">Insights</a>
+  <a href="/search" class="hover:text-indigo-600">Search</a>
+</nav>
+
+<main class="max-w-5xl mx-auto p-6">
+  <h1 class="text-2xl font-bold mb-6">Knowledge Graph</h1>
+
+  {% set node_counts = stats.get("node_counts", {}) %}
+  {% set edge_counts = stats.get("edge_counts", {}) %}
+  {% set entities = stats.get("entities", []) %}
+  {% set edges = stats.get("edges", []) %}
+
+  <!-- Node / edge counts -->
+  <div class="grid grid-cols-3 gap-4 mb-8">
+    {% for label, cnt in node_counts.items() %}
+    <div class="bg-white border rounded-lg p-4">
+      <div class="text-2xl font-bold text-indigo-600">{{ cnt }}</div>
+      <div class="text-sm text-gray-500">{{ label }} nodes</div>
+    </div>
+    {% endfor %}
+    {% for rel, cnt in edge_counts.items() %}
+    <div class="bg-white border rounded-lg p-4">
+      <div class="text-2xl font-bold text-emerald-600">{{ cnt }}</div>
+      <div class="text-sm text-gray-500">{{ rel }} edges</div>
+    </div>
+    {% endfor %}
+    {% if not node_counts and not edge_counts %}
+    <div class="col-span-3 text-gray-400 text-sm">No graph data yet — run ingestion first.</div>
+    {% endif %}
+  </div>
+
+  <div class="grid grid-cols-2 gap-6">
+
+    <!-- Entities -->
+    <div>
+      <h2 class="text-lg font-semibold mb-3">Entities extracted</h2>
+      {% if entities %}
+      <div class="space-y-2">
+        {% for e in entities %}
+        <div class="bg-white border rounded p-3">
+          <div class="font-medium text-sm">{{ e.name }}</div>
+          {% if e.summary %}
+          <div class="text-xs text-gray-500 mt-0.5">{{ e.summary }}</div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-gray-400 text-sm">No entities yet.</p>
+      {% endif %}
+    </div>
+
+    <!-- Relationships -->
+    <div>
+      <h2 class="text-lg font-semibold mb-3">Relationships</h2>
+      {% if edges %}
+      <div class="space-y-2">
+        {% for edge in edges %}
+        <div class="bg-white border rounded p-3 text-sm">
+          <span class="font-medium text-indigo-700">{{ edge.src }}</span>
+          {% if edge.fact %}
+          <span class="text-gray-400 mx-1">→</span>
+          <span class="text-gray-600 italic">{{ edge.fact }}</span>
+          <span class="text-gray-400 mx-1">→</span>
+          {% else %}
+          <span class="text-gray-400 mx-1">—</span>
+          {% endif %}
+          <span class="font-medium text-emerald-700">{{ edge.tgt }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <p class="text-gray-400 text-sm">No relationships yet.</p>
+      {% endif %}
+    </div>
+
+  </div>
+
+  <!-- Search box -->
+  <div class="mt-8">
+    <h2 class="text-lg font-semibold mb-3">Search the graph</h2>
+    <form method="get" action="/search" class="flex gap-2">
+      <input name="q" type="text" placeholder="e.g. who was at the pheras?"
+             class="flex-1 border rounded px-3 py-2 text-sm">
+      <button type="submit"
+              class="bg-indigo-600 text-white px-4 py-2 rounded text-sm hover:bg-indigo-700">
+        Search
+      </button>
+    </form>
+  </div>
+</main>
+</body>
+</html>

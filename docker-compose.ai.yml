@@ -1,0 +1,80 @@
+# AI Photo Intelligence Pipeline
+# Start AFTER the main stack: docker compose -f docker-compose.ai.yml up -d
+# Stop independently without touching Immich/Nextcloud.
+#
+# Prereqs:
+#   ollama pull gemma4:e4b
+#   ollama pull nomic-embed-text
+#   IMMICH_API_KEY must be set in .env
+
+services:
+
+  # ── FalkorDB (Graphiti knowledge graph backend) ─────────────────────────────
+  falkordb:
+    image: falkordb/falkordb:latest
+    container_name: falkordb
+    restart: unless-stopped
+    volumes:
+      - falkordb_data:/data
+    networks:
+      - app_net
+
+  # ── Redis for Graphiti cache ─────────────────────────────────────────────────
+  redis-ai:
+    image: redis:7-alpine
+    container_name: redis_ai
+    restart: unless-stopped
+    networks:
+      - app_net
+
+  # ── Pipeline API + Review UI ─────────────────────────────────────────────────
+  pipeline-api:
+    build:
+      context: ./pipeline
+      dockerfile: Dockerfile
+    container_name: pipeline_api
+    restart: unless-stopped
+    depends_on:
+      - falkordb
+      - redis-ai
+    environment:
+      IMMICH_BASE_URL: http://immich_server:2283
+      IMMICH_API_KEY: ${IMMICH_API_KEY}
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+      FALKORDB_HOST: falkordb
+      FALKORDB_PORT: 6379
+      REDIS_AI_URL: redis://redis-ai:6379
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - pipeline_state:/app/data
+    ports:
+      - "8888:8888"
+    networks:
+      - app_net
+
+  # ── Open WebUI (chat interface to Ollama) ────────────────────────────────────
+  open-webui:
+    image: ghcr.io/open-webui/open-webui:main
+    container_name: open_webui
+    restart: unless-stopped
+    environment:
+      OLLAMA_BASE_URL: http://host.docker.internal:11434
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - open_webui_data:/app/backend/data
+    ports:
+      - "3000:8080"
+    networks:
+      - app_net
+
+volumes:
+  falkordb_data:
+  pipeline_state:
+  open_webui_data:
+
+networks:
+  app_net:
+    external: true
+    name: remote-fss_app_net   # auto-prefixed name created by docker-compose.yml

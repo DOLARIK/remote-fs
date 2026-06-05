@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Event Clusters — Photo Pipeline</title>
+  <script src="https://unpkg.com/htmx.org@1.9.12"></script>
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-50 text-gray-900">
+
+<nav class="bg-white border-b px-6 py-3 flex gap-6 text-sm font-medium">
+  <a href="/" class="hover:text-indigo-600">Dashboard</a>
+  <a href="/clusters" class="text-indigo-600 hover:underline">Events</a>
+  <a href="/people" class="hover:text-indigo-600">People</a>
+  <a href="/photos" class="hover:text-indigo-600">Photos</a>
+  <a href="/graph" class="hover:text-indigo-600">Graph</a>
+  <a href="/insights" class="hover:text-indigo-600">Insights</a>
+  <a href="/search" class="hover:text-indigo-600">Search</a>
+</nav>
+
+<main class="max-w-5xl mx-auto p-6">
+  <h1 class="text-2xl font-bold mb-6">Event Clusters</h1>
+
+  {% if not events %}
+    <p class="text-gray-500">No events detected yet. Run ingestion first.</p>
+  {% endif %}
+
+  <div class="space-y-6">
+  {% for item in events %}
+    {% include "partials/cluster_card.html" %}
+  {% endfor %}
+  </div>
+</main>
+</body>
+</html>

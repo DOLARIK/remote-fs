@@ -1,0 +1,52 @@
+{% set ev = item.event %}
+<div id="card-{{ ev.event_id }}" class="bg-white rounded-lg border p-5">
+
+  <div class="flex items-start justify-between mb-3">
+    <div>
+      <span class="text-lg font-semibold">{{ ev.label or ev.event_id }}</span>
+      {% if ev.confirmed_by_human %}
+        <span class="ml-2 text-xs bg-green-100 text-green-700 px-2 py-0.5 rounded-full">Confirmed</span>
+      {% else %}
+        <span class="ml-2 text-xs bg-yellow-100 text-yellow-700 px-2 py-0.5 rounded-full">
+          AI {{ (ev.label_confidence * 100) | int }}%
+        </span>
+      {% endif %}
+    </div>
+    <div class="text-sm text-gray-400">{{ ev.photo_ids | length }} photos</div>
+  </div>
+
+  <!-- Thumbnails -->
+  <div class="flex flex-wrap gap-2 mb-4">
+    {% for url in item.thumb_urls %}
+      <img src="{{ url }}" class="w-20 h-20 object-cover rounded" loading="lazy">
+    {% endfor %}
+  </div>
+
+  <!-- Evidence -->
+  {% if ev.evidence %}
+  <p class="text-xs text-gray-500 mb-3">Evidence: {{ ev.evidence[:2] | join(' · ') }}</p>
+  {% endif %}
+
+  <!-- Confirm form -->
+  {% if not ev.confirmed_by_human %}
+  <form hx-post="/clusters/{{ ev.event_id }}/confirm"
+        hx-target="#card-{{ ev.event_id }}"
+        hx-swap="outerHTML"
+        class="flex items-center gap-2">
+    <select name="label" class="border rounded px-2 py-1 text-sm">
+      <option value="mehndi" {% if ev.label == 'mehndi' %}selected{% endif %}>Mehndi</option>
+      <option value="haldi" {% if ev.label == 'haldi' %}selected{% endif %}>Haldi</option>
+      <option value="sangeet" {% if ev.label == 'sangeet' %}selected{% endif %}>Sangeet</option>
+      <option value="sagai" {% if ev.label == 'sagai' %}selected{% endif %}>Sagai / Ring Ceremony</option>
+      <option value="pheras" {% if ev.label == 'pheras' %}selected{% endif %}>Pheras</option>
+      <option value="pre_wedding" {% if ev.label == 'pre_wedding' %}selected{% endif %}>Pre-wedding</option>
+      <option value="candid" {% if ev.label == 'candid' %}selected{% endif %}>Candid / Other</option>
+    </select>
+    <button type="submit"
+            class="bg-indigo-600 text-white px-3 py-1 rounded text-sm hover:bg-indigo-700">
+      Confirm
+    </button>
+  </form>
+  {% endif %}
+
+</div>

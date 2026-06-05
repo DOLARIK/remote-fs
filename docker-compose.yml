@@ -130,3 +130,4 @@ volumes:
 networks:
   app_net:
     driver: bridge
+    # Named so docker-compose.ai.yml can join it as external: true
