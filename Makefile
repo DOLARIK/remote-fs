@@ -10,7 +10,7 @@ windows-server:
 	docker compose -f docker-compose.windows.yml --env-file .env up -d
 
 stop-server:
-	docker compose -f docker-compose.yml down
+	docker compose -f docker-compose.yml stop
 
 logs-server:
 	docker compose -f docker-compose.yml logs -f
@@ -24,7 +24,7 @@ windows-downloader:
 	docker compose -f downloader/docker-compose.windows.yml --env-file downloader/.env up -d
 
 stop-downloader:
-	docker compose -f downloader/docker-compose.yml down
+	docker compose -f downloader/docker-compose.yml stop
 
 logs-downloader:
 	docker compose -f downloader/docker-compose.yml logs -f downloader-api
