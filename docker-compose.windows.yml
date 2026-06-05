@@ -1,6 +1,6 @@
 services:
 
-  # ── Database ────────────────────────────────────────────────────────────────
+  # ── Nextcloud Database ──────────────────────────────────────────────────────
   db:
     image: mariadb:11
     container_name: nextcloud_db
@@ -13,22 +13,22 @@ services:
     volumes:
       - db_data:/var/lib/mysql
     networks:
-      - nextcloud_net
+      - app_net
 
-  # ── Redis cache ──────────────────────────────────────────────────────────────
+  # ── Nextcloud Redis ─────────────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     container_name: nextcloud_redis
     restart: unless-stopped
     networks:
-      - nextcloud_net
+      - app_net
 
   # ── Nextcloud ───────────────────────────────────────────────────────────────
   nextcloud:
     image: nextcloud:latest
     container_name: nextcloud_app
     restart: unless-stopped
-    # No staff group workaround needed on Windows
+    # staff group workaround removed — not needed on Windows
     depends_on:
       - db
       - redis
@@ -50,24 +50,82 @@ services:
       - nextcloud_data:/var/www/html/data
       - "${SSD_HOST_PATH}:/mnt/ssd:ro"    # e.g. SSD_HOST_PATH=D:/DP SSD
     networks:
-      - nextcloud_net
+      - app_net
 
-  # ── Cloudflared tunnel ──────────────────────────────────────────────────────
+  # ── Immich Postgres (pgvecto-rs) ────────────────────────────────────────────
+  immich-database:
+    container_name: immich_postgres
+    image: docker.io/tensorchord/pgvecto-rs:pg14-v0.2.0
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: ${IMMICH_DB_PASSWORD}
+      POSTGRES_USER: immich
+      POSTGRES_DB: immich
+      POSTGRES_INITDB_ARGS: '--data-checksums'
+    volumes:
+      - immich_pgdata:/var/lib/postgresql/data
+    networks:
+      - app_net
+
+  # ── Immich Redis (Valkey) ───────────────────────────────────────────────────
+  immich-redis:
+    container_name: immich_redis
+    image: docker.io/valkey/valkey:8-bookworm
+    restart: unless-stopped
+    networks:
+      - app_net
+
+  # ── Immich Server ───────────────────────────────────────────────────────────
+  immich-server:
+    container_name: immich_server
+    image: ghcr.io/immich-app/immich-server:${IMMICH_VERSION:-release}
+    restart: unless-stopped
+    depends_on:
+      - immich-database
+      - immich-redis
+    environment:
+      DB_HOSTNAME: immich-database
+      DB_USERNAME: immich
+      DB_PASSWORD: ${IMMICH_DB_PASSWORD}
+      DB_DATABASE_NAME: immich
+      REDIS_HOSTNAME: immich-redis
+    volumes:
+      - immich_library:/usr/src/app/upload
+      - "${SSD_HOST_PATH}:/mnt/ssd:ro"    # e.g. SSD_HOST_PATH=D:/DP SSD
+    networks:
+      - app_net
+
+  # ── Immich Machine Learning ─────────────────────────────────────────────────
+  immich-machine-learning:
+    container_name: immich_machine_learning
+    image: ghcr.io/immich-app/immich-machine-learning:${IMMICH_VERSION:-release}
+    restart: unless-stopped
+    volumes:
+      - immich_model_cache:/cache
+    networks:
+      - app_net
+
+  # ── Cloudflared (single tunnel, two public hostnames) ───────────────────────
   cloudflared:
     image: cloudflare/cloudflared:latest
     container_name: cloudflared
     restart: unless-stopped
     depends_on:
       - nextcloud
+      - immich-server
     command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
     networks:
-      - nextcloud_net
+      - app_net
 
 volumes:
   db_data:
   nextcloud_html:
   nextcloud_data:
+  immich_pgdata:
+  immich_library:
+  immich_model_cache:
 
 networks:
-  nextcloud_net:
+  app_net:
     driver: bridge
+    name: remote-fss_app_net
