@@ -1,0 +1,40 @@
+services:
+  downloader-ui:
+    build: ./ui
+    container_name: downloader_ui
+    restart: unless-stopped
+    ports:
+      - "3100:80"
+    depends_on:
+      - downloader-api
+
+  downloader-api:
+    build: ./api
+    container_name: downloader_api
+    restart: unless-stopped
+    volumes:
+      - ${VOLUMES_HOST_PATH:-/Volumes}:/mnt/volumes:rw
+      - downloader-data:/app/data
+    environment:
+      - NEXTCLOUD_URL=${NEXTCLOUD_URL:-https://divyanshu-palak-wedding.space}
+      - NEXTCLOUD_USERNAME=${NEXTCLOUD_USERNAME}
+      - NEXTCLOUD_PASSWORD=${NEXTCLOUD_PASSWORD}
+      - REDIS_URL=redis://downloader-redis:6379
+      - MAX_CONCURRENT_DOWNLOADS=${MAX_CONCURRENT_DOWNLOADS:-4}
+    depends_on:
+      - downloader-redis
+
+  downloader-redis:
+    image: redis:7-alpine
+    container_name: downloader_redis
+    restart: unless-stopped
+    volumes:
+      - downloader-redis-data:/data
+
+volumes:
+  downloader-data:
+  downloader-redis-data:
+
+networks:
+  default:
+    name: downloader_net
